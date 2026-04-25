@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="जोडपी यादी">
+<title>जोडपी यादी</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Noto Sans Devanagari', 'Segoe UI', sans-serif; background: #f0ede8; min-height: 100vh; color: #1a1a1a; }
+.topbar { background: #cc0000; color: white; padding: 14px 16px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+.topbar h1 { font-size: 18px; font-weight: 700; }
+.topbar p { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+.container { padding: 16px; max-width: 600px; margin: 0 auto; }
+.card { background: white; border-radius: 14px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.upload-zone { border: 2px dashed #ddd; border-radius: 12px; padding: 32px 16px; text-align: center; cursor: pointer; background: #fafafa; }
+.upload-zone:active { background: #fff5f5; border-color: #cc0000; }
+.upload-icon { font-size: 40px; margin-bottom: 10px; }
+.upload-zone p { color: #666; font-size: 14px; }
+.upload-zone strong { color: #cc0000; }
+#file-input { display: none; }
+.preview-img { width: 100%; max-height: 250px; object-fit: contain; border-radius: 10px; margin-top: 14px; border: 1px solid #eee; }
+.btn { width: 100%; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; border: none; margin-top: 10px; font-family: 'Noto Sans Devanagari', sans-serif; }
+.btn:active { transform: scale(0.97); }
+.btn-red { background: #cc0000; color: white; }
+.btn-green { background: #1a7a1a; color: white; }
+.btn-gray { background: #f0f0f0; color: #333; border: 1px solid #ddd; }
+.loading { text-align: center; padding: 40px 20px; }
+.spinner { width: 44px; height: 44px; border: 4px solid #eee; border-top-color: #cc0000; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading p { color: #666; font-size: 14px; }
+.field-group { margin-bottom: 10px; }
+.field-label { font-size: 12px; color: #888; margin-bottom: 4px; display: block; font-family: 'Noto Sans Devanagari', sans-serif; }
+.field-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: 'Noto Sans Devanagari', sans-serif; background: #fafafa; }
+.field-input:focus { outline: none; border-color: #cc0000; background: white; }
+.fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.table-wrap { overflow-x: auto; margin-top: 12px; border-radius: 8px; border: 1px solid #eee; }
+table.edit-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 500px; }
+.edit-table thead th { background: #fff0f0; color: #cc0000; font-weight: 700; padding: 8px 5px; text-align: center; border: 1px solid #ddd; font-family: 'Noto Sans Devanagari', sans-serif; white-space: nowrap; }
+.edit-table tbody td { border: 1px solid #eee; padding: 1px; }
+.edit-table tbody tr:nth-child(even) { background: #fafafa; }
+.edit-table td input { width: 100%; padding: 7px 5px; border: none; background: transparent; font-size: 12px; font-family: 'Noto Sans Devanagari', sans-serif; text-align: center; outline: none; min-width: 40px; }
+.edit-table td input:focus { background: #fffbf0; }
+.edit-table .naam-input { min-width: 130px; }
+.add-row-btn { width: 100%; padding: 9px; border: 1px dashed #ccc; background: none; color: #999; cursor: pointer; font-size: 13px; font-family: 'Noto Sans Devanagari', sans-serif; border-radius: 0 0 8px 8px; }
+.error-box { background: #fff0f0; border: 1px solid #ffcccc; border-radius: 8px; padding: 12px; font-size: 13px; color: #cc0000; margin-top: 10px; }
+.section-title { font-size: 15px; font-weight: 700; color: #333; margin-bottom: 4px; }
+.section-sub { font-size: 12px; color: #999; margin-bottom: 14px; }
+.steps { display: flex; align-items: center; justify-content: center; padding: 12px 0 4px; }
+.step { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #bbb; }
+.step.active { color: #cc0000; font-weight: 700; }
+.step.done { color: #1a7a1a; }
+.step-num { width: 22px; height: 22px; border-radius: 50%; background: #eee; color: #bbb; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.step.active .step-num { background: #cc0000; color: white; }
+.step.done .step-num { background: #1a7a1a; color: white; }
+.step-line { width: 24px; height: 2px; background: #eee; margin: 0 3px; }
+.step-line.done { background: #1a7a1a; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>जोडपी यादी</h1>
+  <p>ASHA Worker Register</p>
+</div>
+
+<div class="container">
+
+  <div class="steps">
+    <div class="step active" id="s1"><div class="step-num">1</div>फोटो</div>
+    <div class="step-line" id="l1"></div>
+    <div class="step" id="s2"><div class="step-num">2</div>वाचन</div>
+    <div class="step-line" id="l2"></div>
+    <div class="step" id="s3"><div class="step-num">3</div>तपासा</div>
+    <div class="step-line" id="l3"></div>
+    <div class="step" id="s4"><div class="step-num">4</div>डाउनलोड</div>
+  </div>
+
+  <div class="card" id="upload-card">
+    <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div class="upload-icon">📷</div>
+      <p><strong>फोटो निवडा</strong></p>
+      <p style="font-size:12px;margin-top:4px;color:#aaa">कॅमेरा किंवा गॅलरीमधून</p>
+    </div>
+    <input type="file" id="file-input" accept="image/*" capture="environment">
+    <img id="preview-img" class="preview-img hidden" alt="preview">
+    <button class="btn btn-red hidden" id="extract-btn" onclick="extractData()">📋 डेटा काढा</button>
+    <button class="btn btn-gray hidden" id="change-btn" onclick="resetApp()">🔄 फोटो बदला</button>
+    <div id="error-box" class="error-box hidden"></div>
+  </div>
+
+  <div class="card hidden" id="loading-card">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>मराठी मजकूर वाचत आहे...</p>
+      <p style="font-size:12px;margin-top:6px;color:#bbb">कृपया थांबा</p>
+    </div>
+  </div>
+
+  <div class="card hidden" id="edit-card">
+    <div class="section-title">तपासा व दुरुस्त करा</div>
+    <div class="section-sub">चुकीचे असल्यास कोणत्याही ठिकाणी क्लिक करून दुरुस्त करा</div>
+
+    <div class="fields-grid">
+      <div class="field-group">
+        <label class="field-label">कार्यकर्त्याचे नाव</label>
+        <input class="field-input" id="meta-name" type="text">
+      </div>
+      <div class="field-group">
+        <label class="field-label">गाव</label>
+        <input class="field-input" id="meta-gav" type="text">
+      </div>
+      <div class="field-group">
+        <label class="field-label">उपकेंद्र</label>
+        <input class="field-input" id="meta-upkendra" type="text">
+      </div>
+      <div class="field-group">
+        <label class="field-label">PHC</label>
+        <input class="field-input" id="meta-phc" type="text">
+      </div>
+      <div class="field-group">
+        <label class="field-label">यादी प्रकार</label>
+        <input class="field-input" id="meta-type" type="text">
+      </div>
+      <div class="field-group">
+        <label class="field-label">मल यादी</label>
+        <input class="field-input" id="meta-mal" type="text">
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="edit-table">
+        <thead>
+          <tr>
+            <th>अ.क्र.</th>
+            <th>जोडपी क्र.</th>
+            <th>नाव</th>
+            <th>पती</th>
+            <th>पत्नी</th>
+            <th>मोबाईल</th>
+            <th>साधन</th>
+          </tr>
+        </thead>
+        <tbody id="data-tbody"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addRow()">+ ओळ जोडा</button>
+    </div>
+
+    <button class="btn btn-green" onclick="downloadExcel()">📊 Excel डाउनलोड करा</button>
+    <button class="btn btn-red" onclick="printPDF()">🖨️ PDF / प्रिंट करा</button>
+    <button class="btn btn-gray" onclick="resetApp()">🔄 नवीन फोटो</button>
+  </div>
+
+</div>
+
+<script>
+const API_KEY = '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';
+let imageBase64 = null;
+let imageMime = 'image/jpeg';
+
+document.getElementById('file-input').addEventListener('change', e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+function handleFile(file) {
+  imageMime = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = e => {
+    imageBase64 = e.target.result.split(',')[1];
+    document.getElementById('preview-img').src = e.target.result;
+    document.getElementById('preview-img').classList.remove('hidden');
+    document.getElementById('extract-btn').classList.remove('hidden');
+    document.getElementById('change-btn').classList.remove('hidden');
+    document.getElementById('error-box').classList.add('hidden');
+    setStep(1);
+  };
+  reader.readAsDataURL(file);
+}
+
+async function extractData() {
+  document.getElementById('upload-card').classList.add('hidden');
+  document.getElementById('loading-card').classList.remove('hidden');
+  setStep(2);
+
+  try {
+    const prompt = `हे एक मराठी आरोग्य नोंदवही (जोडपी यादी) चे चित्र आहे. सर्व मजकूर अगदी काळजीपूर्वक वाचा. जोडाक्षरे, मात्रा, अनुस्वार सर्व बरोबर लिहा. फक्त JSON परत करा, इतर काहीही नाही, कोणतेही backticks नाहीत:
+{"meta":{"name":"कार्यकर्त्याचे नाव","gav":"गावाचे नाव","upkendra":"उपकेंद्र","phc":"PHC","type":"यादी प्रकार","mal":"मल यादी"},"rows":[{"sr":"1","jodpi_kr":"3","naam":"पूर्ण नाव","pati_vay":"30","patni_vay":"28","mobile":"1234567890","sadhan":""}]}`;
+
+    const res = await fetch(
+      'https://api-inference.huggingface.co/models/Qwen/Qwen2.5-VL-7B-Instruct/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'Qwen/Qwen2.5-VL-7B-Instruct',
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url: `data:${imageMime};base64,${imageBase64}` } },
+              { type: 'text', text: prompt }
+            ]
+          }],
+          max_tokens: 1000,
+          temperature: 0.1
+        })
+      }
+    );
+
+    const data = await res.json();
+    if (data.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+
+    const text = data.choices[0].message.content;
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    populateForm(parsed);
+    document.getElementById('loading-card').classList.add('hidden');
+    document.getElementById('edit-card').classList.remove('hidden');
+    setStep(3);
+
+  } catch(err) {
+    document.getElementById('loading-card').classList.add('hidden');
+    document.getElementById('upload-card').classList.remove('hidden');
+    const eb = document.getElementById('error-box');
+    eb.textContent = 'चूक: ' + err.message;
+    eb.classList.remove('hidden');
+    setStep(1);
+  }
+}
+
+function populateForm(data) {
+  document.getElementById('meta-name').value = data.meta.name || '';
+  document.getElementById('meta-gav').value = data.meta.gav || '';
+  document.getElementById('meta-upkendra').value = data.meta.upkendra || '';
+  document.getElementById('meta-phc').value = data.meta.phc || '';
+  document.getElementById('meta-type').value = data.meta.type || 'पास जोडपी यादी';
+  document.getElementById('meta-mal').value = data.meta.mal || '';
+  document.getElementById('data-tbody').innerHTML = '';
+  (data.rows || []).forEach(r => addRow(r));
+}
+
+function addRow(r = {}) {
+  const tbody = document.getElementById('data-tbody');
+  const tr = document.createElement('tr');
+  ['sr','jodpi_kr','naam','pati_vay','patni_vay','mobile','sadhan'].forEach(f => {
+    const td = document.createElement('td');
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = r[f] || '';
+    if (f === 'naam') inp.classList.add('naam-input');
+    td.appendChild(inp);
+    tr.appendChild(td);
+  });
+  tbody.appendChild(tr);
+}
+
+function getRows() {
+  const rows = [];
+  document.querySelectorAll('#data-tbody tr').forEach(tr => {
+    const c = tr.querySelectorAll('input');
+    rows.push({ sr:c[0].value, jodpi_kr:c[1].value, naam:c[2].value, pati_vay:c[3].value, patni_vay:c[4].value, mobile:c[5].value, sadhan:c[6].value });
+  });
+  return rows;
+}
+
+function getMeta() {
+  return {
+    name: document.getElementById('meta-name').value,
+    gav: document.getElementById('meta-gav').value,
+    upkendra: document.getElementById('meta-upkendra').value,
+    phc: document.getElementById('meta-phc').value,
+    type: document.getElementById('meta-type').value,
+    mal: document.getElementById('meta-mal').value
+  };
+}
+
+function downloadExcel() {
+  const meta = getMeta(), rows = getRows();
+  const wb = XLSX.utils.book_new();
+  const wsData = [
+    [meta.name],[`गाव :- ${meta.gav}`],
+    [`उपकेंद्र :- ${meta.upkendra}   PHC :- ${meta.phc}`],
+    [meta.type],[meta.mal],[],
+    ['अ.क्र.','जोडपी क्र.','पात्र जोडप्यांचे नाव','पती वय','पत्नी वय','मोबाईल नं','साधन'],
+    ...rows.map(r=>[r.sr,r.jodpi_kr,r.naam,r.pati_vay,r.patni_vay,r.mobile,r.sadhan])
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{wch:6},{wch:10},{wch:28},{wch:8},{wch:8},{wch:14},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Data');
+  XLSX.writeFile(wb, 'jodpi_yadi.xlsx');
+}
+
+function printPDF() {
+  const meta = getMeta(), rows = getRows();
+  const html = `<!DOCTYPE html><html lang="mr"><head><meta charset="UTF-8"><title>${meta.type}</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Noto Sans Devanagari',Arial,sans-serif;padding:10mm;}@page{size:A4 portrait;margin:10mm;}.hdr{text-align:center;line-height:1.7;margin-bottom:10px;}.n{font-size:14pt;font-weight:700;}.s{font-size:11pt;}.t{font-size:13pt;font-weight:700;}table{width:100%;border-collapse:collapse;font-size:10pt;margin-top:8px;}thead th{background:#fff0f0;color:#cc0000;font-weight:700;border:1px solid #999;padding:5px 4px;text-align:center;vertical-align:middle;line-height:1.5;}tbody td{border:1px solid #bbb;padding:5px 4px;text-align:center;vertical-align:middle;}tbody tr:nth-child(even){background:#fafafa;}</style></head><body>
+<div class="hdr"><div class="n">${meta.name}</div><div class="s">गाव :- ${meta.gav}</div><div class="s">उपकेंद्र :- ${meta.upkendra} &nbsp; PHC :- ${meta.phc}</div><div class="t">${meta.type}</div><div class="s">${meta.mal}</div></div>
+<table><thead><tr><th rowspan="2">अ.<br>क्र.</th><th rowspan="2">जोडपी<br>क्र.</th><th rowspan="2">पात्र जोडप्यांचे नाव</th><th colspan="2">वय</th><th rowspan="2">मोबाईल नं</th><th rowspan="2">साधन</th></tr><tr><th>पती</th><th>पत्नी</th></tr></thead>
+<tbody>${rows.map(r=>`<tr><td>${r.sr}</td><td>${r.jodpi_kr}</td><td>${r.naam}</td><td>${r.pati_vay}</td><td>${r.patni_vay}</td><td>${r.mobile}</td><td>${r.sadhan}</td></tr>`).join('')}</tbody></table>
+<script>window.onload=function(){window.print();}<\/script></body></html>`;
+  const blob = new Blob([html],{type:'text/html;charset=utf-8'});
+  window.open(URL.createObjectURL(blob),'_blank');
+}
+
+function resetApp() {
+  imageBase64 = null;
+  document.getElementById('file-input').value = '';
+  ['preview-img','extract-btn','change-btn','error-box'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('upload-card').classList.remove('hidden');
+  document.getElementById('loading-card').classList.add('hidden');
+  document.getElementById('edit-card').classList.add('hidden');
+  document.getElementById('data-tbody').innerHTML = '';
+  setStep(1);
+}
+
+function setStep(n) {
+  [1,2,3,4].forEach(i => {
+    const s = document.getElementById(`s${i}`);
+    s.classList.remove('active','done');
+    if (i < n) s.classList.add('done');
+    else if (i === n) s.classList.add('active');
+    if (i < 4) document.getElementById(`l${i}`).classList.toggle('done', i < n);
+  });
+  if (n >= 3) document.getElementById('s4').classList.add('active');
+}
+</script>
+</body>
+</html>
